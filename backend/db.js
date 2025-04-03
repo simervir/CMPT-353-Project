@@ -1,5 +1,3 @@
-// backend/db.js
-
 const mysql = require('mysql2');
 
 const connection = mysql.createConnection({
@@ -41,22 +39,6 @@ connection.query(createMessagesTable, (err) => {
   else console.log('✅ Messages table created (or already exists)');
 });
 
-// ✅ TEMP: Add user_id column if it's missing (safety)
-const addUserIdColumn = `
-  ALTER TABLE messages ADD COLUMN user_id INT DEFAULT NULL
-`;
-connection.query(addUserIdColumn, (err) => {
-  if (err) {
-    if (err.message.includes("Duplicate column name")) {
-      console.log("ℹ️ user_id column already exists");
-    } else {
-      console.error("❌ Failed to add user_id column:", err.message);
-    }
-  } else {
-    console.log("✅ user_id column added to messages table");
-  }
-});
-
 // Create users table
 const createUsersTable = `
   CREATE TABLE IF NOT EXISTS users (
@@ -72,4 +54,34 @@ connection.query(createUsersTable, (err) => {
   else console.log('✅ Users table created (or already exists)');
 });
 
+// ✅ TEMP: Add user_id column to messages (safety)
+const addUserIdColumn = `
+  ALTER TABLE messages ADD COLUMN user_id INT DEFAULT NULL
+`;
+connection.query(addUserIdColumn, (err) => {
+  if (err) {
+    if (err.message.includes("Duplicate column name")) {
+      console.log("ℹ️ user_id column already exists");
+    } else {
+      console.error("❌ Failed to add user_id column:", err.message);
+    }
+  } else {
+    console.log("✅ user_id column added to messages table");
+  }
+});
+
+// ✅ Insert hardcoded system admin (only if not exists)
+const insertAdmin = `
+  INSERT IGNORE INTO users (username, password, display_name, is_admin)
+  VALUES ('admin', 'admin123', 'System Admin', 1)
+`;
+connection.query(insertAdmin, (err, result) => {
+  if (err) {
+    console.error('❌ Failed to insert admin:', err.message);
+  } else {
+    console.log('✅ Admin account ensured');
+  }
+});
+
 module.exports = connection;
+
