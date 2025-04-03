@@ -1,0 +1,93 @@
+Set up before docker
+CMPT-353-Project/
+├── backend/         ← Node.js server
+│   ├── server.js
+│   └── db.js
+├── client/          ← React frontend
+│   └── src/
+│       └── App.js
+
+Backend Setup (Node.js + Express)
+npm init -y
+npm install express cors mysql2
+
+Frontend Setup (React + Router)
+
+npx create-react-app client
+cd client
+
+Install React Router:
+npm install react-router-dom
+
+MySQL Database Schema
+
+CREATE TABLE channels (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  description TEXT
+);
+
+CREATE TABLE messages (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  channel_id INT NOT NULL,
+  content TEXT,
+  image_url VARCHAR(500),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (channel_id) REFERENCES channels(id) ON DELETE CASCADE
+);
+
+How to Test Image URLs
+https://i.imgur.com/Oj1hK9F.jpeg
+
+------------------------------------------------------------------------------------------------------------------------------------------
+Docker (Later)
+
+CMPT-353-Project/
+├── backend/         ← Node.js server
+│   ├── server.js
+│   └── db.js
+├── client/          ← React frontend
+│   └── src/
+│       └── App.js
+├── docker-compose.yml
+
+backend/Dockerfile
+FROM node:18
+WORKDIR /app
+COPY . .
+RUN npm install
+EXPOSE 3001
+CMD ["node", "server.js"]
+
+client/Dockerfile
+FROM node:18
+WORKDIR /app
+COPY . .
+RUN npm install
+EXPOSE 3000
+CMD ["npm", "start"]
+
+docker-compose.yml
+version: '3'
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "3001:3001"
+  frontend:
+    build: ./client
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+  mysql:
+    image: mysql:5.7
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: programming_forum
+    ports:
+      - "3306:3306"
+
+
+docker-compose up --build
