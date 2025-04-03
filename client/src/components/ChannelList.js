@@ -1,11 +1,17 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useState, useEffect } from 'react';
 
 function ChannelList({ user, setUser }) {
   const [channels, setChannels] = useState([]);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [users, setUsers] = useState([]);
+  const [stats, setStats] = useState({
+    mostActive: null,
+    leastActive: null,
+    topRanked: null,
+    lowestRanked: null
+  });
 
   useEffect(() => {
     fetch('http://localhost:3001/channels')
@@ -17,7 +23,31 @@ function ChannelList({ user, setUser }) {
         .then(res => res.json())
         .then(data => setUsers(data));
     }
+
+    fetchStats();
   }, [user]);
+
+  const fetchStats = async () => {
+    const urls = [
+      { key: 'mostActive', url: 'http://localhost:3001/stats/most-active' },
+      { key: 'leastActive', url: 'http://localhost:3001/stats/least-active' },
+      { key: 'topRanked', url: 'http://localhost:3001/stats/top-ranked' },
+      { key: 'lowestRanked', url: 'http://localhost:3001/stats/lowest-ranked' }
+    ];
+
+    const results = {};
+    for (const { key, url } of urls) {
+      try {
+        const res = await fetch(url);
+        const data = await res.json();
+        results[key] = data;
+      } catch {
+        results[key] = { display_name: 'Error', post_count: '?', score: '?' };
+      }
+    }
+
+    setStats(results);
+  };
 
   const handleCreateChannel = (e) => {
     e.preventDefault();
@@ -57,8 +87,19 @@ function ChannelList({ user, setUser }) {
 
       <h2>Create a Channel</h2>
       <form onSubmit={handleCreateChannel}>
-        <input type="text" placeholder="Channel name" value={name} onChange={(e) => setName(e.target.value)} required /><br />
-        <textarea placeholder="Description" value={description} onChange={(e) => setDescription(e.target.value)} required /><br />
+        <input
+          type="text"
+          placeholder="Channel name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          required
+        /><br />
+        <textarea
+          placeholder="Description"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          required
+        /><br />
         <button type="submit">Create Channel</button>
       </form>
 
@@ -91,6 +132,14 @@ function ChannelList({ user, setUser }) {
           </ul>
         </>
       )}
+
+      <h2>User Stats</h2>
+      <ul>
+        <li>🏆 <strong>Most Active:</strong> {stats.mostActive?.display_name} ({stats.mostActive?.post_count} posts)</li>
+        <li>😴 <strong>Least Active:</strong> {stats.leastActive?.display_name} ({stats.leastActive?.post_count} posts)</li>
+        <li>👍 <strong>Top Ranked:</strong> {stats.topRanked?.display_name} (Score: {stats.topRanked?.score})</li>
+        <li>👎 <strong>Lowest Ranked:</strong> {stats.lowestRanked?.display_name} (Score: {stats.lowestRanked?.score})</li>
+      </ul>
     </div>
   );
 }
