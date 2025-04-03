@@ -10,13 +10,12 @@ app.get('/', (req, res) => {
   res.send('Backend is running!');
 });
 
-// DB test
 db.query('SELECT 1', (err) => {
-  if (err) console.error('❌ DB test query failed:', err.message);
-  else console.log('✅ DB test query succeeded!');
+  if (err) console.error('❌ DB test failed:', err.message);
+  else console.log('✅ DB test succeeded');
 });
 
-// Get all channels
+// Channels
 app.get('/channels', (req, res) => {
   db.query('SELECT * FROM channels', (err, results) => {
     if (err) return res.status(500).json({ error: 'DB error' });
@@ -24,7 +23,6 @@ app.get('/channels', (req, res) => {
   });
 });
 
-// Create channel
 app.post('/channels', (req, res) => {
   const { name, description } = req.body;
   db.query('INSERT INTO channels (name, description) VALUES (?, ?)', [name, description], (err, result) => {
@@ -33,7 +31,7 @@ app.post('/channels', (req, res) => {
   });
 });
 
-// Get messages for a channel
+// Messages
 app.get('/channels/:channelId/messages', (req, res) => {
   const channelId = req.params.channelId;
   const sql = `
@@ -49,7 +47,6 @@ app.get('/channels/:channelId/messages', (req, res) => {
   });
 });
 
-// Post message or reply
 app.post('/channels/:channelId/messages', (req, res) => {
   const channelId = req.params.channelId;
   const { content, image_url, parent_id, user_id } = req.body;
@@ -97,7 +94,7 @@ app.post('/login', (req, res) => {
   });
 });
 
-// Admin middleware
+// Admin check
 function verifyAdmin(req, res, next) {
   const { admin_user_id } = req.body;
   if (!admin_user_id) return res.status(400).json({ error: 'Missing admin_user_id' });
@@ -110,7 +107,7 @@ function verifyAdmin(req, res, next) {
   });
 }
 
-// Admin: Delete user
+// Admin routes
 app.post('/admin/delete-user', verifyAdmin, (req, res) => {
   const { user_id } = req.body;
   db.query('DELETE FROM users WHERE id = ?', [user_id], (err) => {
@@ -119,7 +116,6 @@ app.post('/admin/delete-user', verifyAdmin, (req, res) => {
   });
 });
 
-// Admin: Delete channel
 app.post('/admin/delete-channel', verifyAdmin, (req, res) => {
   const { channel_id } = req.body;
   db.query('DELETE FROM channels WHERE id = ?', [channel_id], (err) => {
@@ -128,7 +124,6 @@ app.post('/admin/delete-channel', verifyAdmin, (req, res) => {
   });
 });
 
-// Admin: Delete message
 app.post('/admin/delete-message', verifyAdmin, (req, res) => {
   const { message_id } = req.body;
   db.query('DELETE FROM messages WHERE id = ?', [message_id], (err) => {
@@ -137,7 +132,6 @@ app.post('/admin/delete-message', verifyAdmin, (req, res) => {
   });
 });
 
-// Admin: List users
 app.get('/admin/users', (req, res) => {
   db.query('SELECT id, username, display_name, is_admin FROM users ORDER BY id ASC', (err, results) => {
     if (err) return res.status(500).json({ error: 'DB error' });
@@ -145,7 +139,6 @@ app.get('/admin/users', (req, res) => {
   });
 });
 
-// Admin: List channels
 app.get('/admin/channels', (req, res) => {
   db.query('SELECT * FROM channels ORDER BY id ASC', (err, results) => {
     if (err) return res.status(500).json({ error: 'DB error' });
@@ -153,32 +146,39 @@ app.get('/admin/channels', (req, res) => {
   });
 });
 
-// ✅ Upvote a message
-app.post('/messages/:id/upvote', (req, res) => {
+// ✅ Vote logic with user check
+function handleVote(req, res, voteType) {
   const messageId = req.params.id;
-  db.query(
-    'UPDATE messages SET upvotes = upvotes + 1 WHERE id = ?',
-    [messageId],
-    (err) => {
-      if (err) return res.status(500).json({ error: 'DB error' });
-      res.json({ message: '✅ Upvoted' });
-    }
-  );
-});
+  const { user_id } = req.body;
 
-// ✅ Downvote a message
-app.post('/messages/:id/downvote', (req, res) => {
-  const messageId = req.params.id;
-  db.query(
-    'UPDATE messages SET downvotes = downvotes + 1 WHERE id = ?',
-    [messageId],
-    (err) => {
-      if (err) return res.status(500).json({ error: 'DB error' });
-      res.json({ message: '✅ Downvoted' });
-    }
-  );
-});
+  if (!user_id) return res.status(400).json({ error: 'Missing user_id' });
 
+  const checkSql = `SELECT * FROM message_votes WHERE user_id = ? AND message_id = ?`;
+  db.query(checkSql, [user_id, messageId], (err, results) => {
+    if (err) return res.status(500).json({ error: 'DB error (check)' });
+
+    if (results.length > 0) {
+      return res.status(400).json({ error: 'User has already voted on this message' });
+    }
+
+    const updateSql = `UPDATE messages SET ${voteType === 'up' ? 'upvotes' : 'downvotes'} = ${voteType === 'up' ? 'upvotes' : 'downvotes'} + 1 WHERE id = ?`;
+    db.query(updateSql, [messageId], (err) => {
+      if (err) return res.status(500).json({ error: 'DB error (update)' });
+
+      const insertSql = `INSERT INTO message_votes (user_id, message_id, vote_type) VALUES (?, ?, ?)`;
+      db.query(insertSql, [user_id, messageId, voteType], (err) => {
+        if (err) return res.status(500).json({ error: 'DB error (insert)' });
+        res.json({ message: `✅ ${voteType === 'up' ? 'Upvoted' : 'Downvoted'}` });
+      });
+    });
+  });
+}
+
+// Routes for vote
+app.post('/messages/:id/upvote', (req, res) => handleVote(req, res, 'up'));
+app.post('/messages/:id/downvote', (req, res) => handleVote(req, res, 'down'));
+
+// Start server
 const PORT = 3001;
 app.listen(PORT, () => {
   console.log(`Server is running at http://localhost:${PORT}`);

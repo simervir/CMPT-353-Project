@@ -8,7 +8,7 @@ const connection = mysql.createConnection({
   port: 3306
 });
 
-// Create channels table
+// Channels table
 const createChannelsTable = `
   CREATE TABLE IF NOT EXISTS channels (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -18,10 +18,10 @@ const createChannelsTable = `
 `;
 connection.query(createChannelsTable, (err) => {
   if (err) console.error('❌ channels:', err.message);
-  else console.log('✅ Channels table created (or already exists)');
+  else console.log('✅ Channels table ready');
 });
 
-// Create messages table (with upvotes/downvotes)
+// Messages table (with voting columns)
 const createMessagesTable = `
   CREATE TABLE IF NOT EXISTS messages (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -38,30 +38,23 @@ const createMessagesTable = `
 `;
 connection.query(createMessagesTable, (err) => {
   if (err) console.error('❌ messages:', err.message);
-  else console.log('✅ Messages table created (or already exists)');
+  else console.log('✅ Messages table ready');
 });
 
-// Safe one-time ALTERs in case table already exists
-const addUpvotes = `ALTER TABLE messages ADD COLUMN upvotes INT DEFAULT 0`;
-const addDownvotes = `ALTER TABLE messages ADD COLUMN downvotes INT DEFAULT 0`;
+// Add columns if they already exist
+const alterColumns = [
+  `ALTER TABLE messages ADD COLUMN upvotes INT DEFAULT 0`,
+  `ALTER TABLE messages ADD COLUMN downvotes INT DEFAULT 0`
+];
+alterColumns.forEach(sql =>
+  connection.query(sql, (err) => {
+    if (err && !err.message.includes('Duplicate column')) {
+      console.error('❌ Alter messages:', err.message);
+    }
+  })
+);
 
-connection.query(addUpvotes, (err) => {
-  if (err && !err.message.includes('Duplicate column')) {
-    console.error('❌ upvotes column:', err.message);
-  } else {
-    console.log('✅ upvotes column added or already exists');
-  }
-});
-
-connection.query(addDownvotes, (err) => {
-  if (err && !err.message.includes('Duplicate column')) {
-    console.error('❌ downvotes column:', err.message);
-  } else {
-    console.log('✅ downvotes column added or already exists');
-  }
-});
-
-// Create users table
+// Users table
 const createUsersTable = `
   CREATE TABLE IF NOT EXISTS users (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -73,20 +66,31 @@ const createUsersTable = `
 `;
 connection.query(createUsersTable, (err) => {
   if (err) console.error('❌ users:', err.message);
-  else console.log('✅ Users table created (or already exists)');
+  else console.log('✅ Users table ready');
 });
 
-// Insert admin user if not already present
+// Admin insert
 const insertAdmin = `
   INSERT IGNORE INTO users (username, password, display_name, is_admin)
   VALUES ('admin', 'admin123', 'System Admin', 1)
 `;
-connection.query(insertAdmin, (err, result) => {
-  if (err) {
-    console.error('❌ Failed to insert admin:', err.message);
-  } else {
-    console.log('✅ Admin account ensured');
-  }
+connection.query(insertAdmin, (err) => {
+  if (err) console.error('❌ Admin insert:', err.message);
+  else console.log('✅ Admin ensured');
+});
+
+// ✅ Message Votes Table (new for Part 3 voting protection)
+const createVotesTable = `
+  CREATE TABLE IF NOT EXISTS message_votes (
+    user_id INT,
+    message_id INT,
+    vote_type ENUM('up', 'down'),
+    PRIMARY KEY (user_id, message_id)
+  )
+`;
+connection.query(createVotesTable, (err) => {
+  if (err) console.error('❌ message_votes:', err.message);
+  else console.log('✅ Votes table ready');
 });
 
 module.exports = connection;

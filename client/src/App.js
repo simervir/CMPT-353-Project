@@ -204,8 +204,18 @@ function ChannelMessages({ user }) {
 
   const vote = (id, type) => {
     fetch(`http://localhost:3001/messages/${id}/${type}`, {
-      method: 'POST'
-    }).then(() => fetchMessages());
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: user.id })
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.error) {
+          alert(data.error);
+        } else {
+          fetchMessages();
+        }
+      });
   };
 
   const renderMessages = (parentId = null, indent = 0) => {
