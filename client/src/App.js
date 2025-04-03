@@ -6,7 +6,6 @@ function LoginPage({ setUser }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [displayName, setDisplayName] = useState('');
-  const [error, setError] = useState('');
   const navigate = useNavigate();
 
   const handleSubmit = (e) => {
@@ -24,7 +23,7 @@ function LoginPage({ setUser }) {
       .then(res => res.json())
       .then(data => {
         if (data.error) {
-          setError(data.error);
+          alert(data.error);
         } else {
           setUser(data);
           navigate('/');
@@ -35,15 +34,12 @@ function LoginPage({ setUser }) {
   return (
     <div style={{ padding: '20px' }}>
       <h2>{isRegister ? 'Register' : 'Login'}</h2>
-      {error && <p style={{ color: 'red' }}>{error}</p>}
       <form onSubmit={handleSubmit}>
         <input type="text" placeholder="Username" required value={username} onChange={(e) => setUsername(e.target.value)} /><br />
         <input type="password" placeholder="Password" required value={password} onChange={(e) => setPassword(e.target.value)} /><br />
         {isRegister && (
-          <>
-            <input type="text" placeholder="Display Name" required value={displayName} onChange={(e) => setDisplayName(e.target.value)} /><br />
-          </>
-        )}
+          <input type="text" placeholder="Display Name" required value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
+        )}<br />
         <button type="submit">{isRegister ? 'Register' : 'Login'}</button>
       </form>
       <br />
@@ -156,19 +152,18 @@ function ChannelMessages({ user }) {
   const [replyingTo, setReplyingTo] = useState(null);
   const [replyContent, setReplyContent] = useState('');
 
-  const refreshMessages = () => {
+  const fetchMessages = () => {
     fetch(`http://localhost:3001/channels/${channelId}/messages`)
       .then(res => res.json())
       .then(data => setMessages(data));
   };
 
   useEffect(() => {
-    refreshMessages();
+    fetchMessages();
   }, [channelId]);
 
   const sendNewMessage = (e) => {
     e.preventDefault();
-    if (!user) return alert("Login required");
     fetch(`http://localhost:3001/channels/${channelId}/messages`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -183,13 +178,12 @@ function ChannelMessages({ user }) {
       .then(() => {
         setNewMessage('');
         setImageURL('');
-        refreshMessages();
+        fetchMessages();
       });
   };
 
   const sendReply = (e, parentId) => {
     e.preventDefault();
-    if (!user) return alert("Login required");
     fetch(`http://localhost:3001/channels/${channelId}/messages`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -204,61 +198,83 @@ function ChannelMessages({ user }) {
       .then(() => {
         setReplyingTo(null);
         setReplyContent('');
-        refreshMessages();
+        fetchMessages();
       });
   };
 
-  const topLevelMessages = messages.filter(m => m.parent_id === null);
-  const replies = messages.filter(m => m.parent_id !== null);
+  const vote = (id, type) => {
+    fetch(`http://localhost:3001/messages/${id}/${type}`, {
+      method: 'POST'
+    }).then(() => fetchMessages());
+  };
+
+  const renderMessages = (parentId = null, indent = 0) => {
+    return messages
+      .filter(m => m.parent_id === parentId)
+      .map(m => (
+        <div key={m.id} style={{ marginLeft: `${indent * 30}px`, borderLeft: indent ? '1px solid #ccc' : 'none', paddingLeft: '10px' }}>
+          <p>
+            <strong>{m.display_name || 'Anonymous'}:</strong> {m.content}
+            {m.image_url && <img src={m.image_url} alt="" style={{ maxWidth: '200px', display: 'block' }} />}
+          </p>
+          <p style={{ fontSize: '0.9em' }}>
+            {m.created_at}
+            <button onClick={() => vote(m.id, 'upvote')} style={{ marginLeft: '10px' }}>👍 {m.upvotes}</button>
+            <button onClick={() => vote(m.id, 'downvote')} style={{ marginLeft: '5px' }}>👎 {m.downvotes}</button>
+            <button onClick={() => setReplyingTo(replyingTo === m.id ? null : m.id)} style={{ marginLeft: '10px' }}>
+              {replyingTo === m.id ? 'Cancel' : 'Reply'}
+            </button>
+          </p>
+
+          {replyingTo === m.id && (
+            <form onSubmit={(e) => sendReply(e, m.id)}>
+              <input
+                type="text"
+                placeholder="Your reply..."
+                value={replyContent}
+                onChange={(e) => setReplyContent(e.target.value)}
+                required
+              />
+              <button type="submit">Send</button>
+            </form>
+          )}
+
+          {/* Render replies */}
+          {renderMessages(m.id, indent + 1)}
+        </div>
+      ));
+  };
 
   return (
     <div style={{ padding: '20px' }}>
       <Link to="/">← Back to Channels</Link>
       <h2>Messages for Channel {channelId}</h2>
 
-      <ul>
-        {topLevelMessages.map(msg => (
-          <li key={msg.id} style={{ marginBottom: '20px' }}>
-            <div>
-              <strong>{msg.display_name || 'Anonymous'}:</strong> {msg.content}
-            </div>
-            {msg.image_url && <img src={msg.image_url} alt="Attached" style={{ maxWidth: '300px', marginTop: '5px' }} />}
-            <small>{msg.created_at}</small>
-            <br />
-            <button onClick={() => setReplyingTo(replyingTo === msg.id ? null : msg.id)}>
-              {replyingTo === msg.id ? 'Cancel' : 'Reply'}
-            </button>
-            <ul style={{ paddingLeft: '20px', marginTop: '10px' }}>
-              {replies.filter(r => r.parent_id === msg.id).map(reply => (
-                <li key={reply.id}>
-                  <strong>{reply.display_name || 'Anonymous'}:</strong> {reply.content}
-                  <br />
-                  <small>{reply.created_at}</small>
-                </li>
-              ))}
-            </ul>
-            {replyingTo === msg.id && (
-              <form onSubmit={(e) => sendReply(e, msg.id)} style={{ marginTop: '10px' }}>
-                <input type="text" placeholder="Write a reply..." value={replyContent} onChange={(e) => setReplyContent(e.target.value)} required />
-                <button type="submit">Send Reply</button>
-              </form>
-            )}
-          </li>
-        ))}
-      </ul>
-
       <form onSubmit={sendNewMessage}>
-        <input type="text" placeholder="Write a new message..." value={newMessage} onChange={(e) => setNewMessage(e.target.value)} required /><br />
-        <input type="text" placeholder="Optional image URL" value={imageURL} onChange={(e) => setImageURL(e.target.value)} /><br />
+        <input
+          type="text"
+          placeholder="Write a message"
+          value={newMessage}
+          onChange={(e) => setNewMessage(e.target.value)}
+          required
+        /><br />
+        <input
+          type="text"
+          placeholder="Optional image URL"
+          value={imageURL}
+          onChange={(e) => setImageURL(e.target.value)}
+        /><br />
         <button type="submit">Send Message</button>
       </form>
+
+      <hr />
+      <div>{renderMessages()}</div>
     </div>
   );
 }
 
 function App() {
   const [user, setUser] = useState(null);
-
   return (
     <Router>
       <Routes>

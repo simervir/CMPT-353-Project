@@ -1,10 +1,10 @@
 const mysql = require('mysql2');
 
 const connection = mysql.createConnection({
-  host: 'sql3.freesqldatabase.com',
-  user: 'sql3771034',
-  password: 'QpfxeR5MqR',
-  database: 'sql3771034',
+  host: process.env.DB_HOST || 'sql3.freesqldatabase.com',
+  user: process.env.DB_USER || 'sql3771034',
+  password: process.env.DB_PASSWORD || 'QpfxeR5MqR',
+  database: process.env.DB_NAME || 'sql3771034',
   port: 3306
 });
 
@@ -21,7 +21,7 @@ connection.query(createChannelsTable, (err) => {
   else console.log('✅ Channels table created (or already exists)');
 });
 
-// Create messages table
+// Create messages table (with upvotes/downvotes)
 const createMessagesTable = `
   CREATE TABLE IF NOT EXISTS messages (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -31,12 +31,34 @@ const createMessagesTable = `
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     parent_id INT DEFAULT NULL,
     user_id INT DEFAULT NULL,
+    upvotes INT DEFAULT 0,
+    downvotes INT DEFAULT 0,
     FOREIGN KEY (channel_id) REFERENCES channels(id) ON DELETE CASCADE
   )
 `;
 connection.query(createMessagesTable, (err) => {
   if (err) console.error('❌ messages:', err.message);
   else console.log('✅ Messages table created (or already exists)');
+});
+
+// Safe one-time ALTERs in case table already exists
+const addUpvotes = `ALTER TABLE messages ADD COLUMN upvotes INT DEFAULT 0`;
+const addDownvotes = `ALTER TABLE messages ADD COLUMN downvotes INT DEFAULT 0`;
+
+connection.query(addUpvotes, (err) => {
+  if (err && !err.message.includes('Duplicate column')) {
+    console.error('❌ upvotes column:', err.message);
+  } else {
+    console.log('✅ upvotes column added or already exists');
+  }
+});
+
+connection.query(addDownvotes, (err) => {
+  if (err && !err.message.includes('Duplicate column')) {
+    console.error('❌ downvotes column:', err.message);
+  } else {
+    console.log('✅ downvotes column added or already exists');
+  }
 });
 
 // Create users table
@@ -54,23 +76,7 @@ connection.query(createUsersTable, (err) => {
   else console.log('✅ Users table created (or already exists)');
 });
 
-// ✅ TEMP: Add user_id column to messages (safety)
-const addUserIdColumn = `
-  ALTER TABLE messages ADD COLUMN user_id INT DEFAULT NULL
-`;
-connection.query(addUserIdColumn, (err) => {
-  if (err) {
-    if (err.message.includes("Duplicate column name")) {
-      console.log("ℹ️ user_id column already exists");
-    } else {
-      console.error("❌ Failed to add user_id column:", err.message);
-    }
-  } else {
-    console.log("✅ user_id column added to messages table");
-  }
-});
-
-// ✅ Insert hardcoded system admin (only if not exists)
+// Insert admin user if not already present
 const insertAdmin = `
   INSERT IGNORE INTO users (username, password, display_name, is_admin)
   VALUES ('admin', 'admin123', 'System Admin', 1)
@@ -84,4 +90,3 @@ connection.query(insertAdmin, (err, result) => {
 });
 
 module.exports = connection;
-
