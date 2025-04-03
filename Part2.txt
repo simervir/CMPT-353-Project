@@ -1,0 +1,143 @@
+
+db.js:
+
+    Created users table
+
+    Added user_id column to messages table
+
+    Inserted admin user:
+
+    username: 'admin'
+    password: 'admin123'
+    display_name: 'System Admin'
+    is_admin: 1
+
+
+server.js:
+
+✅ New routes added:
+
+    POST /register
+
+    POST /login
+
+    GET /admin/users
+
+    GET /admin/channels
+
+    POST /admin/delete-user
+
+    POST /admin/delete-channel
+
+    POST /admin/delete-message
+
+Middleware:
+    verifyAdmin: checks if admin_user_id is really an admin
+
+
+App.js:
+
+    Login and registration form
+
+    Displays logged-in user
+
+    Only logged-in users can post
+
+    Logout button
+
+    Admin panel with:
+        Delete user
+        Delete channel
+
+Commands:
+    Register user:
+        curl -X POST http://localhost:3001/register \
+        -H "Content-Type: application/json" \
+        -d '{"username":"admin", "password":"admin123", "display_name":"System Admin", "is_admin":1}'
+    Login user:
+        curl -X POST http://localhost:3001/login \
+        -H "Content-Type: application/json" \
+        -d '{"username":"admin", "password":"admin123"}'
+
+    Delete user:
+        curl -X POST http://localhost:3001/admin/delete-user \
+        -H "Content-Type: application/json" \
+        -d '{"admin_user_id": 3, "user_id": 4}'
+    List users:
+        curl http://localhost:3001/admin/users
+    List channels:
+        curl http://localhost:3001/admin/channels
+
+
+New Docker -----------------------
+    ###########################
+    # Dockerfile (in backend/)
+    FROM node:18
+
+    WORKDIR /app
+    COPY . .
+    RUN npm install
+
+    EXPOSE 3001
+    CMD ["node", "server.js"]
+
+    ############################
+    # Dockerfile (in client/)
+    FROM node:18
+
+    WORKDIR /app
+    COPY . .
+    RUN npm install
+    EXPOSE 3000
+    CMD ["npm", "start"]
+
+    ###################################
+    version: "3"
+    services:
+    backend:
+        build: ./backend
+        ports:
+        - "3001:3001"
+        depends_on:
+        - db
+        environment:
+        - DB_HOST=db
+        - DB_USER=root
+        - DB_PASSWORD=yourpassword
+        - DB_NAME=yourdbname
+
+    client:
+        build: ./client
+        ports:
+        - "3000:3000"
+        depends_on:
+        - backend
+
+    db:
+        image: mysql:5.7
+        restart: always
+        environment:
+        MYSQL_ROOT_PASSWORD: yourpassword
+        MYSQL_DATABASE: yourdbname
+        volumes:
+        - db_data:/var/lib/mysql
+
+    volumes:
+    db_data:
+
+########################################
+In backend/db.js, replace DB config:
+const connection = mysql.createConnection({
+  host: process.env.DB_HOST || 'localhost',
+  user: process.env.DB_USER || 'root',
+  password: process.env.DB_PASSWORD || '',
+  database: process.env.DB_NAME || 'yourdbname',
+  port: 3306
+});
+
+You define these values inside docker-compose.yml:
+environment:
+  - DB_HOST=db
+  - DB_USER=root
+  - DB_PASSWORD=yourpassword
+  - DB_NAME=yourdbname
