@@ -19,6 +19,7 @@ app.use('/', require('./components/messages'));
 app.use('/', require('./components/search'));
 app.use('/', require('./components/stats'));
 app.use('/', require('./components/admin')); // if using
+app.use('/', require('./components/classification'));
 
 app.get('/', (req, res) => res.send('Backend is running!'));
 

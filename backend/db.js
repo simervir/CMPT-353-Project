@@ -8,7 +8,13 @@ const connection = mysql.createConnection({
   port: 3306
 });
 
-// Channels table
+// ✅ Test DB
+connection.query('SELECT 1', (err) => {
+  if (err) console.error('❌ DB connection:', err.message);
+  else console.log('✅ DB connected');
+});
+
+// ✅ Channels table
 const createChannelsTable = `
   CREATE TABLE IF NOT EXISTS channels (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -21,7 +27,7 @@ connection.query(createChannelsTable, (err) => {
   else console.log('✅ Channels table ready');
 });
 
-// Messages table (with voting columns)
+// ✅ Messages table
 const createMessagesTable = `
   CREATE TABLE IF NOT EXISTS messages (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -41,7 +47,7 @@ connection.query(createMessagesTable, (err) => {
   else console.log('✅ Messages table ready');
 });
 
-// Add columns if they already exist
+// ✅ Alter upvotes/downvotes (ignore if already exist)
 const alterColumns = [
   `ALTER TABLE messages ADD COLUMN upvotes INT DEFAULT 0`,
   `ALTER TABLE messages ADD COLUMN downvotes INT DEFAULT 0`
@@ -54,7 +60,7 @@ alterColumns.forEach(sql =>
   })
 );
 
-// Users table
+// ✅ Users table
 const createUsersTable = `
   CREATE TABLE IF NOT EXISTS users (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -69,7 +75,37 @@ connection.query(createUsersTable, (err) => {
   else console.log('✅ Users table ready');
 });
 
-// Admin insert
+// ✅ Safe patch: Add skill_level only if missing
+const checkSkillColumn = `
+  SELECT COUNT(*) AS found
+  FROM information_schema.COLUMNS
+  WHERE TABLE_NAME = 'users'
+    AND COLUMN_NAME = 'skill_level'
+    AND TABLE_SCHEMA = DATABASE()
+`;
+
+connection.query(checkSkillColumn, (err, results) => {
+  if (err) {
+    console.error('❌ Failed to check skill_level:', err.message);
+    return;
+  }
+
+  const exists = results[0].found > 0;
+  if (!exists) {
+    const alter = `
+      ALTER TABLE users
+      ADD COLUMN skill_level ENUM('Beginner', 'Intermediate', 'Expert') DEFAULT 'Beginner'
+    `;
+    connection.query(alter, (err) => {
+      if (err) console.error('❌ Failed to add skill_level:', err.message);
+      else console.log('✅ skill_level column added to users table');
+    });
+  } else {
+    console.log('✅ skill_level column already exists');
+  }
+});
+
+// ✅ Ensure admin user
 const insertAdmin = `
   INSERT IGNORE INTO users (username, password, display_name, is_admin)
   VALUES ('admin', 'admin123', 'System Admin', 1)
@@ -79,7 +115,7 @@ connection.query(insertAdmin, (err) => {
   else console.log('✅ Admin ensured');
 });
 
-// ✅ Message Votes Table (new for Part 3 voting protection)
+// ✅ Votes table
 const createVotesTable = `
   CREATE TABLE IF NOT EXISTS message_votes (
     user_id INT,
