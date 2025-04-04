@@ -1,5 +1,5 @@
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { useEffect, useState } from 'react';
 import SearchBar from './SearchBar';
 
 function ChannelMessages({ user }) {
@@ -11,7 +11,7 @@ function ChannelMessages({ user }) {
   const [replyContent, setReplyContent] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
 
-  const fetchMessages = () => {
+  const fetchMessages = useCallback(() => {
     let url = `http://localhost:3001/channels/${channelId}/messages`;
     if (searchTerm) {
       url += `?search=${encodeURIComponent(searchTerm)}`;
@@ -20,11 +20,11 @@ function ChannelMessages({ user }) {
     fetch(url)
       .then(res => res.json())
       .then(data => setMessages(data));
-  };
+  }, [channelId, searchTerm]);
 
   useEffect(() => {
     fetchMessages();
-  }, [channelId]);
+  }, [fetchMessages]);
 
   const sendNewMessage = (e) => {
     e.preventDefault();
@@ -88,7 +88,7 @@ function ChannelMessages({ user }) {
       .map(m => (
         <div key={m.id} style={{ marginLeft: `${indent * 30}px`, borderLeft: indent ? '1px solid #ccc' : 'none', paddingLeft: '10px' }}>
           <p>
-            <strong>{m.display_name || 'Anonymous'}:</strong> {m.content}
+            <strong>{m.display_name || 'Anonymous'}{m.skill_level ? ` (${m.skill_level})` : ''}:</strong> {m.content}
             {m.image_url && <img src={m.image_url} alt="" style={{ maxWidth: '200px', display: 'block' }} />}
           </p>
           <p style={{ fontSize: '0.9em' }}>
