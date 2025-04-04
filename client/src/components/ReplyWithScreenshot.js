@@ -1,33 +1,42 @@
-// src/components/ReplyWithScreenshot.js
 import React, { useState } from 'react';
 
 function ReplyWithScreenshot({ channelId, parentId, user, onReplySent }) {
   const [replyContent, setReplyContent] = useState('');
-  const [imageFile, setImageFile] = useState(null);
+  const [screenshot, setScreenshot] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleFileChange = (e) => {
+    setScreenshot(e.target.files[0]);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError('');
+    setUploading(true);
 
-    let imageUrl = '';
+    try {
+      let imageUrl = '';
 
-    if (imageFile) {
-      const formData = new FormData();
-      formData.append('screenshot', imageFile);
-      try {
-        const res = await fetch('http://localhost:3001/upload', {
+      if (screenshot) {
+        const formData = new FormData();
+        formData.append('screenshot', screenshot);
+
+        const uploadRes = await fetch('http://localhost:3001/upload', {
           method: 'POST',
           body: formData
         });
-        const data = await res.json();
-        imageUrl = data.url;
-      } catch (err) {
-        alert('❌ Failed to upload screenshot.');
-        return;
-      }
-    }
 
-    try {
-      const res = await fetch(`http://localhost:3001/channels/${channelId}/messages`, {
+        const uploadData = await uploadRes.json();
+
+        if (!uploadRes.ok || !uploadData.image_url) {
+          throw new Error('Upload failed');
+        }
+
+        imageUrl = uploadData.image_url;
+      }
+
+      const messageRes = await fetch(`http://localhost:3001/channels/${channelId}/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -38,33 +47,34 @@ function ReplyWithScreenshot({ channelId, parentId, user, onReplySent }) {
         })
       });
 
-      if (res.ok) {
-        setReplyContent('');
-        setImageFile(null);
-        onReplySent(); // Refresh messages
-      } else {
-        alert('❌ Failed to send reply.');
+      if (!messageRes.ok) {
+        throw new Error('Message sending failed');
       }
+
+      setReplyContent('');
+      setScreenshot(null);
+      onReplySent();
     } catch (err) {
-      alert('❌ Error while sending reply.');
+      console.error(err);
+      setError('❌ Error while sending reply.');
+    } finally {
+      setUploading(false);
     }
   };
 
   return (
     <form onSubmit={handleSubmit} style={{ marginTop: '10px' }}>
-      <input
-        type="text"
-        placeholder="Reply message"
+      <textarea
         value={replyContent}
         onChange={(e) => setReplyContent(e.target.value)}
+        placeholder="Write your reply..."
         required
-      />
-      <input
-        type="file"
-        accept="image/*"
-        onChange={(e) => setImageFile(e.target.files[0])}
-      />
-      <button type="submit">Reply with Screenshot</button>
+      /><br />
+      <input type="file" accept="image/*" onChange={handleFileChange} /><br />
+      <button type="submit" disabled={uploading}>
+        {uploading ? 'Uploading...' : 'Send Reply'}
+      </button>
+      {error && <p style={{ color: 'red' }}>{error}</p>}
     </form>
   );
 }

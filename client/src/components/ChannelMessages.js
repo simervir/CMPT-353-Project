@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import SearchBar from './SearchBar';
 import ReplyWithScreenshot from './ReplyWithScreenshot';
@@ -11,7 +11,7 @@ function ChannelMessages({ user }) {
   const [replyingTo, setReplyingTo] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
 
-  const fetchMessages = () => {
+  const fetchMessages = useCallback(() => {
     let url = `http://localhost:3001/channels/${channelId}/messages`;
     if (searchTerm) {
       url += `?search=${encodeURIComponent(searchTerm)}`;
@@ -20,11 +20,11 @@ function ChannelMessages({ user }) {
     fetch(url)
       .then(res => res.json())
       .then(data => setMessages(data));
-  };
+  }, [channelId, searchTerm]);
 
   useEffect(() => {
     fetchMessages();
-  }, []);
+  }, [fetchMessages]);
 
   const sendNewMessage = (e) => {
     e.preventDefault();
