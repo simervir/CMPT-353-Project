@@ -6,6 +6,8 @@ services:
     container_name: app-backend
     ports:
       - "3001:3001"
+    volumes:
+      - ./backend/uploads:/app/uploads
     working_dir: /app
     environment:
       - DB_HOST=sql3.freesqldatabase.com
