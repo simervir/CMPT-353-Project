@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { Link, useParams } from 'react-router-dom';
 import SearchBar from './SearchBar';
+import ReplyWithScreenshot from './ReplyWithScreenshot';
 
 function ChannelMessages({ user }) {
   const { channelId } = useParams();
@@ -8,10 +9,9 @@ function ChannelMessages({ user }) {
   const [newMessage, setNewMessage] = useState('');
   const [imageURL, setImageURL] = useState('');
   const [replyingTo, setReplyingTo] = useState(null);
-  const [replyContent, setReplyContent] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
 
-  const fetchMessages = useCallback(() => {
+  const fetchMessages = () => {
     let url = `http://localhost:3001/channels/${channelId}/messages`;
     if (searchTerm) {
       url += `?search=${encodeURIComponent(searchTerm)}`;
@@ -20,11 +20,11 @@ function ChannelMessages({ user }) {
     fetch(url)
       .then(res => res.json())
       .then(data => setMessages(data));
-  }, [channelId, searchTerm]);
+  };
 
   useEffect(() => {
     fetchMessages();
-  }, [fetchMessages]);
+  }, []);
 
   const sendNewMessage = (e) => {
     e.preventDefault();
@@ -42,26 +42,6 @@ function ChannelMessages({ user }) {
       .then(() => {
         setNewMessage('');
         setImageURL('');
-        fetchMessages();
-      });
-  };
-
-  const sendReply = (e, parentId) => {
-    e.preventDefault();
-    fetch(`http://localhost:3001/channels/${channelId}/messages`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        content: replyContent,
-        image_url: '',
-        parent_id: parentId,
-        user_id: user.id
-      }),
-    })
-      .then(res => res.json())
-      .then(() => {
-        setReplyingTo(null);
-        setReplyContent('');
         fetchMessages();
       });
   };
@@ -88,8 +68,14 @@ function ChannelMessages({ user }) {
       .map(m => (
         <div key={m.id} style={{ marginLeft: `${indent * 30}px`, borderLeft: indent ? '1px solid #ccc' : 'none', paddingLeft: '10px' }}>
           <p>
-            <strong>{m.display_name || 'Anonymous'}{m.skill_level ? ` (${m.skill_level})` : ''}:</strong> {m.content}
-            {m.image_url && <img src={m.image_url} alt="" style={{ maxWidth: '200px', display: 'block' }} />}
+            <strong>{m.display_name || 'Anonymous'}:</strong> {m.content}
+            {m.image_url && (
+              <img
+                src={m.image_url}
+                alt="screenshot"
+                style={{ maxWidth: '200px', display: 'block', marginTop: '5px' }}
+              />
+            )}
           </p>
           <p style={{ fontSize: '0.9em' }}>
             {m.created_at}
@@ -101,16 +87,15 @@ function ChannelMessages({ user }) {
           </p>
 
           {replyingTo === m.id && (
-            <form onSubmit={(e) => sendReply(e, m.id)}>
-              <input
-                type="text"
-                placeholder="Your reply..."
-                value={replyContent}
-                onChange={(e) => setReplyContent(e.target.value)}
-                required
-              />
-              <button type="submit">Send</button>
-            </form>
+            <ReplyWithScreenshot
+              channelId={channelId}
+              parentId={m.id}
+              user={user}
+              onReplySent={() => {
+                setReplyingTo(null);
+                fetchMessages();
+              }}
+            />
           )}
 
           {renderMessages(m.id, indent + 1)}
