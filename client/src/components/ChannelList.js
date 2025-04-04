@@ -82,7 +82,10 @@ function ChannelList({ user, setUser }) {
 
   return (
     <div style={{ padding: '20px' }}>
-      <h1>Welcome, {user.display_name}!</h1>
+     <h1>
+      Welcome, {user.display_name}
+      {user.skill_level && ` (${user.skill_level})`}
+    !</h1>
       <button onClick={() => setUser(null)}>Logout</button>
 
       <h2>Create a Channel</h2>

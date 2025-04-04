@@ -30,6 +30,7 @@ router.post('/login', (req, res) => {
         username: user.username,
         display_name: user.display_name,
         is_admin: !!user.is_admin,
+        skill_level: user.skill_level 
       });
     }
   );

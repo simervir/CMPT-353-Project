@@ -1,0 +1,27 @@
+version: "3.9"
+
+services:
+  backend:
+    build: ./backend
+    container_name: app-backend
+    ports:
+      - "3001:3001"
+    working_dir: /app
+   # volumes:
+    #  - ./backend:/app
+    # command: bash   
+    # stdin_open: true
+    # tty: true
+    environment:
+      - DB_HOST=sql3.freesqldatabase.com
+      - DB_USER=sql3771034
+      - DB_PASSWORD=QpfxeR5MqR
+      - DB_NAME=sql3771034
+
+  frontend:
+    build: ./client
+    container_name: app-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend

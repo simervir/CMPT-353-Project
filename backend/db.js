@@ -129,4 +129,5 @@ connection.query(createVotesTable, (err) => {
   else console.log('✅ Votes table ready');
 });
 
+
 module.exports = connection;
