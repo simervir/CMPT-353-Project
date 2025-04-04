@@ -7,21 +7,21 @@ services:
     ports:
       - "3001:3001"
     working_dir: /app
-   # volumes:
-    #  - ./backend:/app
-    # command: bash   
-    # stdin_open: true
-    # tty: true
     environment:
       - DB_HOST=sql3.freesqldatabase.com
       - DB_USER=sql3771034
       - DB_PASSWORD=QpfxeR5MqR
       - DB_NAME=sql3771034
+    command: node server.js
 
   frontend:
     build: ./client
     container_name: app-frontend
     ports:
-      - "3000:80"
+      - "3000:3000"
+    working_dir: /app
+    command: npm start
+    environment:
+      - CHOKIDAR_USEPOLLING=true
     depends_on:
       - backend
